@@ -46,9 +46,11 @@ class Premium(core_models.VersionedModel):
     reporting_id = models.IntegerField(db_column="ReportingId", blank=True, null=True)
     audit_user_id = models.IntegerField(db_column="AuditUserID")
     # rowid = models.TextField(db_column='RowID', blank=True, null=True)
+    payment_number = models.CharField(db_column="paymentNumber", max_length=20, blank=True, null=True)
+    network_operator = models.CharField(db_column="networkOperator", max_length=1, blank=True, null=True)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'tblPremium'
 
 

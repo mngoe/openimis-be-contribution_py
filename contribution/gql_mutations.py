@@ -33,6 +33,8 @@ class PremiumBase:
     is_photo_fee = graphene.Boolean(required=False)
     action = graphene.String(required=False)
     # json_ext = graphene.types.json.JSONString(required=False)
+    payment_number = graphene.String(required=True)
+    network_operator = graphene.String(required=True)
 
 
 def reset_premium_before_update(premium):
@@ -45,6 +47,8 @@ def reset_premium_before_update(premium):
     premium.is_photo_fee = None
     premium.is_offline = None
     premium.reporting_id = None
+    premium.payment_number = None
+    premium.network_operator = None
 
 
 def update_or_create_premium(data, user):

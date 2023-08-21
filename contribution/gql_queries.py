@@ -16,6 +16,8 @@ class PremiumGQLType(DjangoObjectType):
             "amount": ["exact", "lt", "lte", "gt", "gte"],
             "pay_date": ["exact", "lt", "lte", "gt", "gte"],
             "pay_type": ["exact"],
+            "payment_number": ["exact"],
+            "network_operator": ["exact"],
             "is_photo_fee": ["exact"],
             "receipt": ["exact", "icontains"],
             **prefix_filterset("policy__", PolicyGQLType._meta.filter_fields)
