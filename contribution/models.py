@@ -48,6 +48,10 @@ class Premium(core_models.VersionedModel):
     # rowid = models.TextField(db_column='RowID', blank=True, null=True)
     payment_number = models.CharField(db_column="paymentNumber", max_length=20, blank=True, null=True)
     network_operator = models.CharField(db_column="networkOperator", max_length=1, blank=True, null=True)
+    paytoken = models.TextField(db_column="PayToken", blank=True, null=True)
+    cron_treated = models.BooleanField(
+        db_column="CronTreated", blank=True, null=True, default=False
+    )
 
     class Meta:
         managed = True

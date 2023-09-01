@@ -1,3 +1,4 @@
+import base64, json, requests, os
 from contribution.services import premium_updated
 from policy.models import Policy
 from typing import Optional
@@ -87,9 +88,41 @@ def update_or_create_premium(data, user):
         premium.payer = payer
         premium.save()
     # Handle the policy updating
-    premium_updated(premium, action)
+    # Premium paid via Orange Money should be checked via
+    # a cron to verify status before calling premium_updated method
+    pay_type = data.get('pay_type', None)
+    to_check = False
+    if pay_type and str(pay_type) == 'M':
+        payment_number = data.get('payment_number', None)
+        network_operator = data.get('network_operator', None)
+        if payment_number and network_operator and str(network_operator) == 'O':
+            print("A periodic task will check this premium if its paid")
+            to_check = True
+    if not to_check:
+        premium_updated(premium, action)
     return premium
 
+def get_access_token():
+    reponse = False
+    url = "http://omapi-token.ynote.africa/oauth2/token"
+    awskey = os.environ.get("AWS_KEY")
+    awssecret = os.environ.get("AWS_SECRET")
+    auth = base64.encodestring(
+        ('%s:%s' % (awskey, awssecret)).encode()).decode().replace("\n", "")
+    payload='grant_type=client_credentials'
+    headers = {
+    'Authorization': 'Basic '+ auth,
+    'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    response = requests.request(
+        'POST',
+        url,
+        headers=headers,
+        data=payload,
+        verify = False
+    )
+    reponse = response.json()
+    return reponse
 
 class CreatePremiumMutation(OpenIMISMutation):
     """
@@ -112,6 +145,71 @@ class CreatePremiumMutation(OpenIMISMutation):
             client_mutation_id = data.get("client_mutation_id")
             premium = update_or_create_premium(data, user)
             PremiumMutation.object_mutated(user, client_mutation_id=client_mutation_id, premium=premium)
+            pay_type = data.get('pay_type', None)
+            if pay_type and str(pay_type) == 'M':
+                network_operator = data.get('network_operator', None)
+                payment_number = data.get('payment_number', None)
+                policy_number = data.get('policy').policy_number
+                amount = data.get('amount')
+                if payment_number and network_operator and str(network_operator) == 'O':
+                    try:
+                        request_token = get_access_token()
+                        if request_token:
+                            if isinstance(request_token, dict):
+                                access_token = request_token.get('access_token', False)
+                                if not access_token:
+                                    raise Exception('Unable to get access token, please try aigain letter'\
+                                            '\n Details: ' + str(request_token)
+                                    )
+                                omkey = os.environ.get("OM_KEY")
+                                omsecret = os.environ.get("OM_SECRET")
+                                ompin = os.environ.get("OM_PIN")
+                                x_auth_token = os.environ.get("X_AUTH_TOKEN")
+                                omchannel = os.environ.get("OM_CHANNEL")
+                                url = "https://omapi.ynote.africa/dev/webpayment"
+                                payment_number = payment_number.replace(" ", "").replace("+","").replace("+237", "")
+                                payload = {
+                                    "API_USSD_PARAM": {
+                                        "customer_key": omkey,
+                                        "customer_secret": omsecret,
+                                        "x_auth_token": x_auth_token + "=",
+                                        "description": "csu_" + str(policy_number),
+                                        "orderId": str(policy_number),
+                                        "pin": ompin,
+                                        "subscriberMsisdn": str(payment_number),
+                                        "amount": str(amount).split('.')[0],
+                                        "channelUserMsisdn": omchannel,
+                                        "notifUrl": "https://webhook.site/17a89681-1871-404d-ace0-d8d70c5f064f"
+                                    }
+                                }
+                                headers = {
+                                    'Authorization': 'Bearer '+ access_token,
+                                    'Content-Type': 'application/json'
+                                }
+                                result = requests.post(
+                                    url,
+                                    headers=headers,
+                                    data=json.dumps(payload)
+                                )
+                                try:
+                                    response = result.json()
+                                    if "data" in response:
+                                        if "payToken" in response["data"]:
+                                            premium.paytoken = response["data"]["payToken"]
+                                            premium.save()
+                                except Exception as e:
+                                    print("Exception reponse ", e)
+                                print("PAY Response ", response)
+                    except Exception as api_exc:
+                        return [
+                            {
+                                'message': _(
+                                    """Warnig: The contribution is created but
+                                    the payment request has not been send to the payer.\n
+                                    Maybe you should do this manually"""),
+                                'detail': str(api_exc)
+                            }
+                        ]
             return None
         except Exception as exc:
             return [{
