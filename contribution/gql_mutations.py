@@ -149,7 +149,7 @@ class CreatePremiumMutation(OpenIMISMutation):
             if pay_type and str(pay_type) == 'M':
                 network_operator = data.get('network_operator', None)
                 payment_number = data.get('payment_number', None)
-                policy_number = data.get('policy').policy_number
+                policy_number = data.get('policy').policy_number or 'imis'
                 amount = data.get('amount')
                 if payment_number and network_operator and str(network_operator) == 'O':
                     try:
