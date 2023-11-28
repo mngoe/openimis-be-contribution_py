@@ -58,6 +58,7 @@ def update_or_create_premium(data, user):
     if "client_mutation_label" in data:
         data.pop('client_mutation_label')
     now = datetime.datetime.now()
+    print("data ", data)
     data['audit_user_id'] = user.id_for_audit
     data['validity_from'] = now
     policy_uuid = data.pop("policy_uuid") if "policy_uuid" in data else None
@@ -98,6 +99,7 @@ def update_or_create_premium(data, user):
         if payment_number and network_operator and str(network_operator) == 'O':
             print("A periodic task will check this premium if its paid")
             to_check = True
+    print("to_check ", to_check)
     if not to_check:
         premium_updated(premium, action)
     return premium

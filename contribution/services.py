@@ -190,6 +190,7 @@ def premium_updated(premium, action):
     if the contribution is lower than the policy value, action can override it or suspend the policy
     if it is right or too much, just activate it (enforce is still expected but just a warning)
     """
+    print("Entered")
     policy = premium.policy
     policy.save_history()
 
@@ -199,6 +200,7 @@ def premium_updated(premium, action):
         return
 
     if premium.amount == policy.value:
+        print("OK")
         policy_status_premium_paid(
             policy,
             premium.pay_date
