@@ -72,6 +72,9 @@ def merchand_payment_task():
                                     if total >= premium.policy.value:
                                         premium.policy.status=Policy.STATUS_ACTIVE
                                         premium.policy.save()
+                            if statut_rep["data"]["status"] == "FAILED":
+                                premium.cron_treated = 1
+                                premium.save()
     else:
         print('Unable to get access token', request_token)
     print("End MP request cron...")
