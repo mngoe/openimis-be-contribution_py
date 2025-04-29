@@ -7,6 +7,8 @@ DEFAULT_CFG = {
     "gql_mutation_create_premiums_perms": ["101302"],
     "gql_mutation_update_premiums_perms": ["101303"],
     "gql_mutation_delete_premiums_perms": ["101304"],
+    "generate_invoice_on_contribution": False,
+    "number_of_invoice_on_contribution": 1
 }
 
 
@@ -17,6 +19,8 @@ class ContributionConfig(AppConfig):
     gql_mutation_create_premiums_perms = []
     gql_mutation_update_premiums_perms = []
     gql_mutation_delete_premiums_perms = []
+    generate_invoice_on_contribution = None
+    number_of_invoice_on_contribution = None
 
     def __load_config(self, cfg):
         for field in cfg:
