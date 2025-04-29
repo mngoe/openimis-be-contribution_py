@@ -11,7 +11,10 @@ from location.apps import LocationConfig
 from location.models import Location
 from policy.models import Policy
 from policy.services import policy_status_premium_paid
-
+from contribution.apps import ContributionConfig
+from datetime import timedelta, datetime as py_datetime
+from invoice.services import InvoiceService
+from invoice.services.invoiceLineItem import InvoiceLineItemService
 from .models import Premium, PayTypeChoices
 
 logger = logging.getLogger(__name__)
@@ -271,8 +274,101 @@ def update_or_create_premium(premium, user, action=None):
     existing_premium = Premium.objects.filter(*filter_validity(), Q(Q(uuid=premium.uuid) | Q(id=premium.id))).first()
     if existing_premium:
         return update_premium(existing_premium, premium, user, action)
-    else:  
-        return create_premium(premium, user, action)
+    else:
+        value_return = create_premium(premium, user, action)
+        logger.warning("Config for invoice generation %s",
+                       ContributionConfig.generate_invoice_on_contribution)
+        if ContributionConfig.generate_invoice_on_contribution:
+            number = ContributionConfig.number_of_invoice_on_contribution
+            if premium.policy.contribution_plan:
+                logger.warning("date_valid_from of the contribution %s",
+                               premium.policy.contribution_plan.date_valid_from)
+                today = py_datetime.now()
+                generate = False
+                if today > premium.policy.contribution_plan.date_valid_from:
+                    if premium.policy.contribution_plan.date_valid_to:
+                        if premium.policy.contribution_plan.date_valid_to > today:
+                            generate = True
+                    else:
+                        # Validity to is null
+                        generate = True
+                if generate:
+                    logger.warning("Periodicity %s",
+                               premium.policy.contribution_plan.periodicity)
+                    if premium.policy.contribution_plan.periodicity:
+                        renewal_date = today + datetimedelta(
+                            months=premium.policy.contribution_plan.periodicity
+                        )
+                        logger.warning("renewal date %s", renewal_date)
+                        ok = False
+                        if not premium.policy.contribution_plan.date_valid_to:
+                            ok = True
+                        else:
+                            if renewal_date < premium.policy.contribution_plan.\
+                                date_valid_to:
+                                ok = True
+                        if ok:
+                            logger.warning("Family %s", premium.policy.family.id)
+                            insuree_numbers = ""
+                            members = Insuree.objects.filter(
+                                family_id=premium.policy.family.id,
+                                validity_to__isnull=True
+                            )
+                            for membre in members:
+                                insuree_numbers += str(membre.id)
+                            code = insuree_numbers + str(today.year) + str(today.month)
+                            date_due = today + datetimedelta(
+                                months=1
+                            )
+                            logger.warning("date due %s", date_due)
+                            if premium.policy.payment_day:
+                                date_due = date_due.replace(day=int(premium.policy.payment_day))
+                                logger.warning("date due updated %s", date_due)
+                            date_valid_to = renewal_date - timedelta(days=1)
+                            logger.warning("current date_valid_to %s", date_valid_to)
+                            amount_net = premium.policy.value
+                            logger.warning("policy value %s", amount_net)
+                            quantity = 1
+                            if premium.policy.periodicity:
+                                if premium.policy.periodicity == 'Q':
+                                    amount_net = amount_net * 3
+                                    quantity = 3
+                                elif premium.policy.periodicity == 'S':
+                                    amount_net = amount_net * 6
+                                    quantity = 6
+                                elif premium.policy.periodicity == 'Y':
+                                    amount_net = amount_net * 12
+                            logger.warning("amount net %s", amount_net)
+                            for _ in range(number):
+                                invoice_service = InvoiceService(user=user)
+                                result_invoice = invoice_service.create(
+                                    {
+                                        "code": code,
+                                        "date_due": date_due,
+                                        "date_valid_from": date_due,
+                                        "date_valid_to": date_valid_to,
+                                        "amount_net": amount_net,
+                                        "amount_total": amount_net,
+                                        "status": 1
+                                    }
+                                )
+                                logger.warning("Invoice created %s", result_invoice)
+                                if result_invoice["success"] is True:
+                                    invoice_line_item_service =\
+                                        InvoiceLineItemService(user=user)
+                                    result = invoice_line_item_service.create(
+                                        {
+                                            "invoice_id": result_invoice["data"]["id"],
+                                            "code": code,
+                                            "ledger_account": "ras",
+                                            "quantity": quantity,
+                                            "unit_price": float(premium.policy.value),
+                                            "amount_net": amount_net,
+                                            "amount_total": amount_net
+                                        }
+                                    )
+                                    logger.warning("Invoice line created %s", result)
+        return value_return
 
 
 def update_premium(existing_premium, premium, user, action = None):
