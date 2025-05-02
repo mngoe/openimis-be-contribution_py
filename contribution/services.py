@@ -420,7 +420,7 @@ def update_or_create_premium(premium, user, action=None):
                                     item_values = {
                                         "invoice_id": result_invoice["data"]["id"],
                                         "code": code,
-                                        "ledger_account": "government",
+                                        "ledger_account": "Etat",
                                         "quantity": quantity,
                                         "unit_price": float(premium.policy.value),
                                         "amount_net": government_amount,
@@ -468,7 +468,7 @@ def update_or_create_premium(premium, user, action=None):
                                         {
                                             "invoice_id": result_invoice["data"]["id"],
                                             "code": code,
-                                            "ledger_account": "family",
+                                            "ledger_account": "Cotisant",
                                             "quantity": quantity,
                                             "unit_price": float(premium.policy.value),
                                             "amount_net": family_amount,
