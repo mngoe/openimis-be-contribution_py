@@ -378,15 +378,15 @@ def update_or_create_premium(premium, user, action=None):
                             logger.warning("government amount %s ",
                                            government_amount)
                             logger.warning("family amount %s ", family_amount)
+                            logger.warning("head insuree %s ",
+                                               premium.policy.family.head_insuree)
+                            existing_invoices = Invoice.objects.filter(
+                                code=code)
+                            if existing_invoices:
+                                code = code + "_" + str(
+                                    len(existing_invoices)+1)
                             # create goverment invoice
                             if government_amount > 0:
-                                logger.warning("head insuree %s ",
-                                               premium.policy.family.head_insuree)
-                                existing_invoices = Invoice.objects.filter(
-                                    code=code)
-                                if existing_invoices:
-                                    code = code + "_" + str(
-                                        len(existing_invoices)+1)
                                 values = {
                                     "code": code,
                                     "date_due": date_due,
