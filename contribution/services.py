@@ -282,7 +282,7 @@ def update_or_create_premium(premium, user, action=None):
         value_return = create_premium(premium, user, action)
         logger.warning("Config for invoice generation %s",
                        ContributionConfig.generate_invoice_on_contribution)
-        if ContributionConfig.generate_invoice_on_contribution or 1==1:
+        if ContributionConfig.generate_invoice_on_contribution:
             family_amount = 0
             government_amount = 0
             instance = ContributionPlan.objects.filter(
