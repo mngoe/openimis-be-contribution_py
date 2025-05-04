@@ -329,153 +329,158 @@ def update_or_create_premium(premium, user, action=None):
                         # Validity to is null
                         generate = True
                 if generate:
-                    logger.warning("Periodicity %s",
-                               premium.policy.contribution_plan.periodicity)
-                    if premium.policy.contribution_plan.periodicity:
-                        renewal_date = today + datetimedelta(
-                            months=premium.policy.contribution_plan.periodicity
-                        )
-                        logger.warning("renewal date %s", renewal_date)
-                        ok = False
-                        if not premium.policy.contribution_plan.date_valid_to:
+                    periodicity = 12
+                    if premium.policy.periodicity:
+                        if premium.policy.periodicity == 'Q':
+                            periodicity = 3
+                        elif premium.policy.periodicity == 'S':
+                            periodicity = 6
+                        elif premium.policy.periodicity == 'M':
+                            periodicity = 1
+                    renewal_date = today + datetimedelta(
+                        months=periodicity
+                    )
+                    logger.warning("renewal date %s", renewal_date)
+                    ok = False
+                    if not premium.policy.contribution_plan.date_valid_to:
+                        ok = True
+                    else:
+                        if renewal_date < premium.policy.contribution_plan.\
+                            date_valid_to:
                             ok = True
-                        else:
-                            if renewal_date < premium.policy.contribution_plan.\
-                                date_valid_to:
-                                ok = True
-                        if ok:
-                            logger.warning("Family %s", premium.policy.family.id)
-                            insuree_numbers = ""
-                            members = Insuree.objects.filter(
-                                family_id=premium.policy.family.id,
-                                validity_to__isnull=True
+                    if ok:
+                        logger.warning("Family %s", premium.policy.family.id)
+                        insuree_numbers = ""
+                        members = Insuree.objects.filter(
+                            family_id=premium.policy.family.id,
+                            validity_to__isnull=True
+                        )
+                        for membre in members:
+                            insuree_numbers += str(membre.id)
+                        code = insuree_numbers + str(today.year) + str(today.month)
+                        date_due = today + datetimedelta(
+                            months=1
+                        )
+                        logger.warning("date due %s", date_due)
+                        if premium.policy.payment_day:
+                            date_due = date_due.replace(day=int(premium.policy.payment_day))
+                            logger.warning("date due updated %s", date_due)
+                        date_valid_to = renewal_date - timedelta(days=1)
+                        logger.warning("current date_valid_to %s", date_valid_to)
+                        quantity = 1
+                        if premium.policy.periodicity:
+                            if premium.policy.periodicity == 'Q':
+                                family_amount = family_amount / 3
+                                government_amount = government_amount / 3
+                            elif premium.policy.periodicity == 'S':
+                                family_amount = family_amount / 6
+                                government_amount = government_amount / 6
+                            elif premium.policy.periodicity == 'Y':
+                                family_amount = family_amount / 12
+                                government_amount = government_amount / 12
+                        logger.warning("government amount %s ",
+                                        government_amount)
+                        logger.warning("family amount %s ", family_amount)
+                        logger.warning("head insuree %s ",
+                                            premium.policy.family.head_insuree)
+                        existing_invoices = Invoice.objects.filter(
+                            code=code)
+                        if existing_invoices:
+                            code = code + "_" + str(
+                                len(existing_invoices)+1)
+                        # create goverment invoice
+                        if government_amount > 0:
+                            values = {
+                                "code": code,
+                                "date_due": date_due,
+                                "date_valid_from": date_due,
+                                "date_valid_to": date_valid_to,
+                                "amount_net": government_amount,
+                                "amount_total": government_amount,
+                                "status": 1
+                            }
+                            if premium.policy.family.head_insuree:
+                                values["subject_id"] = premium.policy.\
+                                    family.head_insuree.id
+                                values["subject_type"] = "insuree"
+                                values["thirdparty_id"] = premium.policy.\
+                                    family.head_insuree.id
+                                values["thirdparty_type"] = "insuree"
+                                if family_amount > 0:
+                                    # update code as two invoice will be
+                                    # created as the code is unique
+                                    values["code"] = values["code"] + "-G"
+                            invoice_service = InvoiceService(user=user)
+                            result_invoice = invoice_service.create(
+                                values
                             )
-                            for membre in members:
-                                insuree_numbers += str(membre.id)
-                            code = insuree_numbers + str(today.year) + str(today.month)
-                            date_due = today + datetimedelta(
-                                months=1
-                            )
-                            logger.warning("date due %s", date_due)
-                            if premium.policy.payment_day:
-                                date_due = date_due.replace(day=int(premium.policy.payment_day))
-                                logger.warning("date due updated %s", date_due)
-                            date_valid_to = renewal_date - timedelta(days=1)
-                            logger.warning("current date_valid_to %s", date_valid_to)
-                            quantity = 1
-                            if premium.policy.periodicity:
-                                if premium.policy.periodicity == 'Q':
-                                    family_amount = family_amount / 3
-                                    government_amount = government_amount / 3
-                                elif premium.policy.periodicity == 'S':
-                                    family_amount = family_amount / 6
-                                    government_amount = government_amount / 6
-                                elif premium.policy.periodicity == 'Y':
-                                    family_amount = family_amount / 12
-                                    government_amount = government_amount / 12
-                            logger.warning("government amount %s ",
-                                           government_amount)
-                            logger.warning("family amount %s ", family_amount)
-                            logger.warning("head insuree %s ",
-                                               premium.policy.family.head_insuree)
-                            existing_invoices = Invoice.objects.filter(
-                                code=code)
-                            if existing_invoices:
-                                code = code + "_" + str(
-                                    len(existing_invoices)+1)
-                            # create goverment invoice
-                            if government_amount > 0:
-                                values = {
+                            logger.warning(
+                                "Invoice government_amount created %s",
+                                result_invoice)
+                            if result_invoice["success"] is True:
+                                invoice_line_item_service =\
+                                    InvoiceLineItemService(user=user)
+                                item_values = {
+                                    "invoice_id": result_invoice["data"]["id"],
                                     "code": code,
-                                    "date_due": date_due,
-                                    "date_valid_from": date_due,
-                                    "date_valid_to": date_valid_to,
+                                    "ledger_account": "Etat",
+                                    "quantity": quantity,
+                                    "unit_price": float(premium.policy.value),
                                     "amount_net": government_amount,
-                                    "amount_total": government_amount,
-                                    "status": 1
+                                    "amount_total": government_amount
                                 }
-                                if premium.policy.family.head_insuree:
-                                    values["subject_id"] = premium.policy.\
-                                        family.head_insuree.id
-                                    values["subject_type"] = "insuree"
-                                    values["thirdparty_id"] = premium.policy.\
-                                        family.head_insuree.id
-                                    values["thirdparty_type"] = "insuree"
-                                    if family_amount > 0:
-                                        # update code as two invoice will be
-                                        # created as the code is unique
-                                        values["code"] = values["code"] + "-G"
-                                invoice_service = InvoiceService(user=user)
-                                result_invoice = invoice_service.create(
-                                    values
+                                if family_amount > 0:
+                                    # update code as two invoice will be
+                                    # created as the code is unique
+                                    item_values["code"] = item_values["code"] + "-G"
+                                result = invoice_line_item_service.create(
+                                    item_values
                                 )
                                 logger.warning(
-                                    "Invoice government_amount created %s",
-                                    result_invoice)
-                                if result_invoice["success"] is True:
-                                    invoice_line_item_service =\
-                                        InvoiceLineItemService(user=user)
-                                    item_values = {
+                                    "Invoice line gov_amount created %s",
+                                    result)
+                        # create Family invoice
+                        if family_amount > 0:
+                            invoice_service = InvoiceService(user=user)
+                            gov_values = {
+                                "code": code,
+                                "date_due": date_due,
+                                "date_valid_from": date_due,
+                                "date_valid_to": date_valid_to,
+                                "amount_net": family_amount,
+                                "amount_total": family_amount,
+                                "status": 1
+                            }
+                            if premium.policy.family.head_insuree:
+                                gov_values["subject_id"] = premium.policy.\
+                                    family.head_insuree.id
+                                gov_values["subject_type"] = "insuree"
+                                gov_values["thirdparty_id"] = premium.policy.\
+                                    family.head_insuree.id
+                                gov_values["thirdparty_type"] = "insuree"
+                            result_invoice = invoice_service.create(
+                                gov_values
+                            )
+                            logger.warning(
+                                "Invoice family amount created %s",
+                                result_invoice)
+                            if result_invoice["success"] is True:
+                                invoice_line_item_service =\
+                                    InvoiceLineItemService(user=user)
+                                result = invoice_line_item_service.create(
+                                    {
                                         "invoice_id": result_invoice["data"]["id"],
                                         "code": code,
-                                        "ledger_account": "Etat",
+                                        "ledger_account": "Cotisant",
                                         "quantity": quantity,
                                         "unit_price": float(premium.policy.value),
-                                        "amount_net": government_amount,
-                                        "amount_total": government_amount
+                                        "amount_net": family_amount,
+                                        "amount_total": family_amount
                                     }
-                                    if family_amount > 0:
-                                        # update code as two invoice will be
-                                        # created as the code is unique
-                                        item_values["code"] = item_values["code"] + "-G"
-                                    result = invoice_line_item_service.create(
-                                        item_values
-                                    )
-                                    logger.warning(
-                                        "Invoice line gov_amount created %s",
-                                        result)
-                            # create Family invoice
-                            if family_amount > 0:
-                                invoice_service = InvoiceService(user=user)
-                                gov_values = {
-                                    "code": code,
-                                    "date_due": date_due,
-                                    "date_valid_from": date_due,
-                                    "date_valid_to": date_valid_to,
-                                    "amount_net": family_amount,
-                                    "amount_total": family_amount,
-                                    "status": 1
-                                }
-                                if premium.policy.family.head_insuree:
-                                    gov_values["subject_id"] = premium.policy.\
-                                        family.head_insuree.id
-                                    gov_values["subject_type"] = "insuree"
-                                    gov_values["thirdparty_id"] = premium.policy.\
-                                        family.head_insuree.id
-                                    gov_values["thirdparty_type"] = "insuree"
-                                result_invoice = invoice_service.create(
-                                    gov_values
                                 )
                                 logger.warning(
-                                    "Invoice family amount created %s",
-                                    result_invoice)
-                                if result_invoice["success"] is True:
-                                    invoice_line_item_service =\
-                                        InvoiceLineItemService(user=user)
-                                    result = invoice_line_item_service.create(
-                                        {
-                                            "invoice_id": result_invoice["data"]["id"],
-                                            "code": code,
-                                            "ledger_account": "Cotisant",
-                                            "quantity": quantity,
-                                            "unit_price": float(premium.policy.value),
-                                            "amount_net": family_amount,
-                                            "amount_total": family_amount
-                                        }
-                                    )
-                                    logger.warning(
-                                        "Invoice line amount_family created %s",
-                                        result)
+                                    "Invoice line amount_family created %s",
+                                    result)
         return value_return
 
 
