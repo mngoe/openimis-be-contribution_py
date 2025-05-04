@@ -367,11 +367,9 @@ def update_or_create_premium(premium, user, action=None):
                                 if premium.policy.periodicity == 'Q':
                                     family_amount = family_amount / 3
                                     government_amount = government_amount / 3
-                                    quantity = 3
                                 elif premium.policy.periodicity == 'S':
                                     family_amount = family_amount / 6
                                     government_amount = government_amount / 6
-                                    quantity = 6
                                 elif premium.policy.periodicity == 'Y':
                                     family_amount = family_amount / 12
                                     government_amount = government_amount / 12
