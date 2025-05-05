@@ -425,7 +425,7 @@ def update_or_create_premium(premium, user, action=None):
                                     "code": code,
                                     "ledger_account": "Etat",
                                     "quantity": quantity,
-                                    "unit_price": float(premium.policy.value),
+                                    "unit_price": government_amount,
                                     "amount_net": government_amount,
                                     "amount_total": government_amount
                                 }
@@ -473,7 +473,7 @@ def update_or_create_premium(premium, user, action=None):
                                         "code": code,
                                         "ledger_account": "Cotisant",
                                         "quantity": quantity,
-                                        "unit_price": float(premium.policy.value),
+                                        "unit_price": family_amount,
                                         "amount_net": family_amount,
                                         "amount_total": family_amount
                                     }
