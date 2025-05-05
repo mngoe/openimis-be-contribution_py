@@ -397,7 +397,8 @@ def update_or_create_premium(premium, user, action=None):
                                 "date_valid_to": date_valid_to,
                                 "amount_net": government_amount,
                                 "amount_total": government_amount,
-                                "status": 1
+                                "status": 1,
+                                "cronjobcode": code
                             }
                             if premium.policy.family.head_insuree:
                                 values["subject_id"] = premium.policy.\
@@ -410,6 +411,7 @@ def update_or_create_premium(premium, user, action=None):
                                     # update code as two invoice will be
                                     # created as the code is unique
                                     values["code"] = values["code"] + "-G"
+                                    values["cronjobcode"] = values["cronjobcode"] + "-G"
                             invoice_service = InvoiceService(user=user)
                             result_invoice = invoice_service.create(
                                 values
@@ -427,12 +429,14 @@ def update_or_create_premium(premium, user, action=None):
                                     "quantity": quantity,
                                     "unit_price": government_amount,
                                     "amount_net": government_amount,
-                                    "amount_total": government_amount
+                                    "amount_total": government_amount,
+                                    "cronjobcode": code
                                 }
                                 if family_amount > 0:
                                     # update code as two invoice will be
                                     # created as the code is unique
                                     item_values["code"] = item_values["code"] + "-G"
+                                    item_values["cronjobcode"] = item_values["cronjobcode"] + "-G"
                                 result = invoice_line_item_service.create(
                                     item_values
                                 )
@@ -449,7 +453,8 @@ def update_or_create_premium(premium, user, action=None):
                                 "date_valid_to": date_valid_to,
                                 "amount_net": family_amount,
                                 "amount_total": family_amount,
-                                "status": 1
+                                "status": 1,
+                                "cronjobcode": code
                             }
                             if premium.policy.family.head_insuree:
                                 gov_values["subject_id"] = premium.policy.\
@@ -475,7 +480,8 @@ def update_or_create_premium(premium, user, action=None):
                                         "quantity": quantity,
                                         "unit_price": family_amount,
                                         "amount_net": family_amount,
-                                        "amount_total": family_amount
+                                        "amount_total": family_amount,
+                                        "cronjobcode": code
                                     }
                                 )
                                 logger.warning(
