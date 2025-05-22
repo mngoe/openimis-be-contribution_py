@@ -271,7 +271,7 @@ def update_or_create_premium(premium, user, action=None):
     existing_premium = Premium.objects.filter(*filter_validity(), Q(Q(uuid=premium.uuid) | Q(id=premium.id))).first()
     if existing_premium:
         return update_premium(existing_premium, premium, user, action)
-    else: 
+    else:  
         return create_premium(premium, user, action)
 
 
